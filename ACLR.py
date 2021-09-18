@@ -1,31 +1,38 @@
-import sys
 from PySide2 import QtWidgets, QtCore, QtGui
 from functools import partial
 import multiprocessing
 import subprocess
 import signal
+import sys
 import os
 
 
+def sumbit_render(scene_file, output, start_f, end_f, step_f, threads, process):
 
-def run_structure(scene_file, destination, start_f, end_f, step_f, threads, process):
-
+    # Check if selected scene file is empty.
     if not scene_file.text():
         scene_file.setFocus()
         return
+    # Check if selected scene file exists.
     elif not os.path.isfile(scene_file.text().replace('\\', '/')):
         scene_file.setSelection(0, len(scene_file.text()))
+        scene_file.setFocus()
         return
-    elif not destination.text():
-        destination.setFocus()
+    # Check if output dir is empty.
+    elif not output.text():
+        output.setFocus()
         return
-    elif not os.path.isdir(destination.text()):
-        destination.setSelection(0, len(destination.text()))
+    # Check if output dir exists.
+    elif not os.path.isdir(output.text()):
+        output.setSelection(0, len(output.text()))
+        output.setFocus()
         return
-    process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {destination.text()} '
+    # Submit render
+    process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {output.text()} '
                   f'-postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
                   f'-postRender print("""Render_finished\\n"""); {scene_file.text()}')
     return True
+
 
 class MainProjectWindow(QtWidgets.QDialog):
 
@@ -54,21 +61,22 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.setup_ui()
 
         self._process = QtCore.QProcess(self)
-        self._process.started.connect(self.handleStarted)
-        self._process.finished.connect(self.handleFinished)
-        self._process.error.connect(self.handleError)
+        self._process.started.connect(self.handle_started)
+        self._process.finished.connect(self.handle_finished)
+        self._process.error.connect(self.handle_error)
 
         self._time = QtCore.QTime()
         self._timer = QtCore.QTimer(self)
-        self._timer.timeout.connect(self.handleTimeout)
+        self._timer.timeout.connect(self.handle_timeout)
 
+    # If Rendering, ignore close.
     def closeEvent(self, event):
         if self._timer.isActive():
             event.ignore()
         else:
             QtWidgets.QWidget.closeEvent(self, event)
 
-    def handleTimeout(self):
+    def handle_timeout(self):
         self.button_stop.setText('Elapsed: %.*f' % (2, self._time.elapsed() / 1000.0))
         data = bytearray(self._process.readAllStandardOutput()).decode('utf-8').rstrip()
         if 'Frame_' in data:
@@ -77,25 +85,25 @@ class MainProjectWindow(QtWidgets.QDialog):
             old_frames = self.progress_bar.format().split('/')
             self.progress_bar.setFormat(f'{int(old_frames[0]) + 1}/{old_frames[1]}')
 
-    def handleStarted(self):
+    def handle_started(self):
         self.button_create.setDisabled(True)
         self.button_stop.setDisabled(False)
         self._time.start()
         self._timer.start(100)
 
-    def handleFinished(self):
+    def handle_finished(self):
         self._timer.stop()
         self.button_create.setDisabled(False)
         self.button_stop.setDisabled(True)
         self.progress_bar.setValue(100)
 
-    def handleError(self, error):
+    def handle_error(self, error):
         if error == QtCore.QProcess.CrashExit:
             print('Process killed')
         else:
             print(self._process.errorString())
 
-    def handleButtonStop(self):
+    def handle_button_stop(self):
         if self._timer.isActive():
             self._process.close()
             os.kill(self._process.processId(), signal.CTRL_C_EVENT)
@@ -139,7 +147,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.progress_bar.setValue(0)
         self.progress_bar_value = 0
 
-        if run_structure(self.scene_file, self.destination_path, self.startFrame.value(), self.endFrame.value(), self.stepFrame.value(), self.thread_slider.value(), self._process):
+        if sumbit_render(self.scene_file, self.destination_path, self.startFrame.value(), self.endFrame.value(), self.stepFrame.value(), self.thread_slider.value(), self._process):
             self.close()
 
     def create_confirm_buttons(self):
@@ -168,7 +176,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         confirm_layout.addWidget(button_cancel)
 
         self.button_create.clicked.connect(partial(self.prepare_render))
-        self.button_stop.clicked.connect(partial(self.handleButtonStop))
+        self.button_stop.clicked.connect(partial(self.handle_button_stop))
         button_cancel.clicked.connect(partial(self.close))
 
         check_env_layout = QtWidgets.QHBoxLayout()
@@ -191,6 +199,7 @@ class MainProjectWindow(QtWidgets.QDialog):
 
     def check_env(self):
         try:
+            # Change buttons color to Green if Render.exe env variable exists.
             subprocess.check_call(['where', 'Render'])
             self.check_env_but.setStyleSheet("border-radius : 10;"
                                  "background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, "
@@ -199,6 +208,7 @@ class MainProjectWindow(QtWidgets.QDialog):
             self.check_env_label.setText('Render.exe Path found!')
             self.button_create.setDisabled(False)
         except subprocess.CalledProcessError:
+            # Change buttons color to Red if Render.exe env variable doesn't exist.
             self.check_env_but.setStyleSheet("border-radius : 10;"
                                  "background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, "
                                  "fy:0.5, stop:0 rgba(200, 0, 0, 255), stop:0.642045 rgba(220, 34, 34, 255), "
