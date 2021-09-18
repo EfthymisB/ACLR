@@ -5,9 +5,10 @@ import subprocess
 import signal
 import sys
 import os
+import re
 
 
-def sumbit_render(scene_file, output, start_f, end_f, step_f, threads, process):
+def sumbit_render(scene_file, output, start_f, end_f, step_f, threads, process, override_cam, cam_sel):
 
     # Check if selected scene file is empty.
     if not scene_file.text():
@@ -28,9 +29,14 @@ def sumbit_render(scene_file, output, start_f, end_f, step_f, threads, process):
         output.setFocus()
         return
     # Submit render
-    process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {output.text()} '
-                  f'-postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
-                  f'-postRender print("""Render_finished\\n"""); {scene_file.text()}')
+    if override_cam:
+        process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {output.text()} '
+                      f'-cam {cam_sel.text()} -postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
+                      f'-postRender print("""Render_finished\\n"""); {scene_file.text()}')
+    else:
+        process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {output.text()} '
+                      f'-postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
+                      f'-postRender print("""Render_finished\\n"""); {scene_file.text()}')
     return True
 
 
@@ -57,6 +63,8 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.thirdGroupBoxLayout = None
         self.third_layout_1 = None
         self.third_layout_2 = None
+        self.cameraGroupBox = None
+        self.cameraGroupBoxLayout = None
 
         self.setup_ui()
 
@@ -80,7 +88,10 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.button_stop.setText('Elapsed: %.*f' % (2, self._time.elapsed() / 1000.0))
         data = bytearray(self._process.readAllStandardOutput()).decode('utf-8').rstrip()
         if 'Frame_' in data:
-            self.progress_bar_value += (100 / ((self.endFrame.value() - self.startFrame.value()) / self.stepFrame.value()))
+            try:
+                self.progress_bar_value += (100 / ((self.endFrame.value() - self.startFrame.value()) / self.stepFrame.value()))
+            except ZeroDivisionError:
+                self.progress_bar_value = 1
             self.progress_bar.setValue(self.progress_bar_value)
             old_frames = self.progress_bar.format().split('/')
             self.progress_bar.setFormat(f'{int(old_frames[0]) + 1}/{old_frames[1]}')
@@ -129,12 +140,64 @@ class MainProjectWindow(QtWidgets.QDialog):
 
         self.secondGroupBox = QtWidgets.QGroupBox("Frames")
         self.secondGroupBoxLayout = QtWidgets.QFormLayout(self.secondGroupBox)
-        self.frames_and_render_layout.addWidget(self.secondGroupBox, 2)
+        self.frames_and_render_layout.addWidget(self.secondGroupBox, 1)
+
+        self.cameraGroupBox = QtWidgets.QGroupBox("Camera", alignment=QtGui.Qt.AlignCenter)
+        self.cameraGroupBoxLayout = QtWidgets.QFormLayout(self.cameraGroupBox)
+        self.frames_and_render_layout.addWidget(self.cameraGroupBox, 1)
+        self.cameraListWidget = QtWidgets.QListWidget()
+        self.cameraListWidget.setMaximumWidth(80)
+        self.cameraListWidget.setDisabled(True)
+        self.camera_override = QtWidgets.QCheckBox(parent=self)
+        self.camera_override.move(135, 97)
+        self.camera_override.clicked.connect(self.camera_override_switch)
+        self.cameraGroupBoxLayout.addWidget(self.cameraListWidget)
 
         self.thirdGroupBox = QtWidgets.QGroupBox("Render device (CPU)")
         self.thirdGroupBoxLayout = QtWidgets.QVBoxLayout(self.thirdGroupBox)
 
-        self.frames_and_render_layout.addWidget(self.thirdGroupBox, 6)
+        self.frames_and_render_layout.addWidget(self.thirdGroupBox, 7)
+
+    def update_cameras(self, event):
+
+        self.cameraListWidget.clear()
+
+        if event.endswith('.ma'):
+            try:
+                file = open(event, 'r')
+                file_lines = file.readlines()
+                results = []
+                for line in file_lines:
+                    if line.startswith('createNode camera'):
+                        results.append(re.search('"(.*?)"', line).group(1)[:-5])
+                for result in sorted(set(results)):
+                    self.cameraListWidget.addItem(result)
+                self.cameraListWidget.setCurrentRow(0)
+            except FileNotFoundError:
+                pass
+
+        elif event.endswith('.mb'):
+            try:
+                file = open(event, encoding="latin-1")
+                file_lines = file.readlines()
+                results = []
+                for line in file_lines:
+                    if line.strip().startswith('-camera'):
+                        try:
+                            results.append(re.search("\\|(.*?)\\|", line).group(1))
+                        except AttributeError:
+                            pass
+                for result in sorted(set(results)):
+                    self.cameraListWidget.addItem(result)
+                self.cameraListWidget.setCurrentRow(0)
+            except FileNotFoundError:
+                pass
+
+    def camera_override_switch(self, event):
+        if event:
+            self.cameraListWidget.setEnabled(True)
+        else:
+            self.cameraListWidget.setDisabled(True)
 
     def total_frames(self):
         frames = (self.endFrame.value() - self.startFrame.value()) + 1
@@ -147,7 +210,9 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.progress_bar.setValue(0)
         self.progress_bar_value = 0
 
-        if sumbit_render(self.scene_file, self.destination_path, self.startFrame.value(), self.endFrame.value(), self.stepFrame.value(), self.thread_slider.value(), self._process):
+        if sumbit_render(self.scene_file, self.destination_path, self.startFrame.value(), self.endFrame.value(),
+                         self.stepFrame.value(), self.thread_slider.value(), self._process,
+                         self.camera_override.isChecked(), self.cameraListWidget.currentItem()):
             self.close()
 
     def create_confirm_buttons(self):
@@ -223,6 +288,8 @@ class MainProjectWindow(QtWidgets.QDialog):
         destination_path_layout, destination_path = self.create_inputs("Output path", "Enter a directory", False)
         self.scene_file = scene_file
         self.destination_path = destination_path
+
+        self.scene_file.textChanged.connect(self.update_cameras)
 
         self.mainGroupBoxLayout.addLayout(scene_file_layout)
         self.mainGroupBoxLayout.addLayout(destination_path_layout)
