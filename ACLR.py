@@ -131,7 +131,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.secondGroupBoxLayout = QtWidgets.QFormLayout(self.secondGroupBox)
         self.frames_and_render_layout.addWidget(self.secondGroupBox, 2)
 
-        self.thirdGroupBox = QtWidgets.QGroupBox("Render device")
+        self.thirdGroupBox = QtWidgets.QGroupBox("Render device (CPU)")
         self.thirdGroupBoxLayout = QtWidgets.QVBoxLayout(self.thirdGroupBox)
 
         self.frames_and_render_layout.addWidget(self.thirdGroupBox, 6)
