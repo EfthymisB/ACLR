@@ -198,7 +198,6 @@ class MainProjectWindow(QtWidgets.QDialog):
                                  "stop:0.977273 rgba(0, 220, 0, 0));")
             self.check_env_label.setText('Render.exe Path found!')
             self.button_create.setDisabled(False)
-            print('LOL')
         except subprocess.CalledProcessError:
             self.check_env_but.setStyleSheet("border-radius : 10;"
                                  "background-color: qradialgradient(spread:pad, cx:0.5, cy:0.5, radius:0.5, fx:0.5, "

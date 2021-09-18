@@ -1,0 +1,1 @@
+powershell -windowstyle hidden "S:\VFX\Maya\Maya2022\bin\mayapy.exe C:\Users\<User>\Documents\maya\scripts\ACLR.py"
