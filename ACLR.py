@@ -46,10 +46,10 @@ class MainProjectWindow(QtWidgets.QDialog):
         super(MainProjectWindow, self).__init__(parent)
 
         self.mainLayout = None
-        self.mainGroupBox = None
-        self.mainGroupBoxLayout = None
-        self.secondGroupBox = None
-        self.secondGroupBoxLayout = None
+        self.project_grBox = None
+        self.project_grBox_layout = None
+        self.frame_grBox = None
+        self.frame_grBox_layout = None
         self.scene_file = None
         self.destination_path = None
         self.startFrame = None
@@ -59,8 +59,8 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.folderWidget = None
         self.frames_and_render_layout = None
         self.thirdGroupBoxLayout_2 = None
-        self.thirdGroupBox = None
-        self.thirdGroupBoxLayout = None
+        self.render_device_grBox = None
+        self.render_device_grBox_layout = None
         self.third_layout_1 = None
         self.third_layout_2 = None
         self.cameraGroupBox = None
@@ -131,16 +131,16 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.create_confirm_buttons()
 
     def create_main_groups(self):
-        self.mainGroupBox = QtWidgets.QGroupBox("Project Structure")
-        self.mainGroupBoxLayout = QtWidgets.QVBoxLayout(self.mainGroupBox)
-        self.mainLayout.addWidget(self.mainGroupBox)
+        self.project_grBox = QtWidgets.QGroupBox("Project")
+        self.project_grBox_layout = QtWidgets.QVBoxLayout(self.project_grBox)
+        self.mainLayout.addWidget(self.project_grBox)
 
         self.frames_and_render_layout = QtWidgets.QHBoxLayout(self)
         self.mainLayout.addLayout(self.frames_and_render_layout)
 
-        self.secondGroupBox = QtWidgets.QGroupBox("Frames")
-        self.secondGroupBoxLayout = QtWidgets.QFormLayout(self.secondGroupBox)
-        self.frames_and_render_layout.addWidget(self.secondGroupBox, 1)
+        self.frame_grBox = QtWidgets.QGroupBox("Frames")
+        self.frame_grBox_layout = QtWidgets.QFormLayout(self.frame_grBox)
+        self.frames_and_render_layout.addWidget(self.frame_grBox, 1)
 
         self.cameraGroupBox = QtWidgets.QGroupBox("Camera", alignment=QtGui.Qt.AlignCenter)
         self.cameraGroupBoxLayout = QtWidgets.QFormLayout(self.cameraGroupBox)
@@ -153,10 +153,10 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.camera_override.clicked.connect(self.camera_override_switch)
         self.cameraGroupBoxLayout.addWidget(self.cameraListWidget)
 
-        self.thirdGroupBox = QtWidgets.QGroupBox("Render device (CPU)")
-        self.thirdGroupBoxLayout = QtWidgets.QVBoxLayout(self.thirdGroupBox)
+        self.render_device_grBox = QtWidgets.QGroupBox("Render device (CPU)")
+        self.render_device_grBox_layout = QtWidgets.QVBoxLayout(self.render_device_grBox)
 
-        self.frames_and_render_layout.addWidget(self.thirdGroupBox, 7)
+        self.frames_and_render_layout.addWidget(self.render_device_grBox, 7)
 
     def update_cameras(self, event):
 
@@ -291,9 +291,9 @@ class MainProjectWindow(QtWidgets.QDialog):
 
         self.scene_file.textChanged.connect(self.update_cameras)
 
-        self.mainGroupBoxLayout.addLayout(scene_file_layout)
-        self.mainGroupBoxLayout.addLayout(destination_path_layout)
-        self.mainGroupBoxLayout.addStretch()
+        self.project_grBox_layout.addLayout(scene_file_layout)
+        self.project_grBox_layout.addLayout(destination_path_layout)
+        self.project_grBox_layout.addStretch()
 
         self.startFrame = self.create_spinboxes('Start:', 2500, 1, 1, True, True)
         self.endFrame = self.create_spinboxes('End:', 2500, 1, 1, True, False)
@@ -313,11 +313,11 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.thread_slider.setTickPosition(QtWidgets.QSlider.TicksAbove)
         self.thread_slider.setTickInterval(2)
         self.thread_slider.valueChanged.connect(self.slider_update)
-        self.thirdGroupBoxLayout.addWidget(self.thread_label, 1, QtCore.Qt.AlignCenter)
-        self.thirdGroupBoxLayout.addWidget(self.thread_slider)
+        self.render_device_grBox_layout.addWidget(self.thread_label, 1, QtCore.Qt.AlignCenter)
+        self.render_device_grBox_layout.addWidget(self.thread_slider)
 
         self.slider_labels_layout = QtWidgets.QHBoxLayout()
-        self.thirdGroupBoxLayout.addLayout(self.slider_labels_layout)
+        self.render_device_grBox_layout.addLayout(self.slider_labels_layout)
 
         self.slider_min = QtWidgets.QLabel('1')
         self.slider_value = QtWidgets.QLabel(f'{multiprocessing.cpu_count()}')
@@ -375,7 +375,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         if validator:
             spinbox.valueChanged.connect(partial(self.spin_box_validator, validator_type))
 
-        self.secondGroupBoxLayout.addRow(name_label, spinbox)
+        self.frame_grBox_layout.addRow(name_label, spinbox)
 
         return spinbox
 
