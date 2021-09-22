@@ -1,6 +1,7 @@
 from PySide2 import QtWidgets, QtCore, QtGui
 from functools import partial
 import multiprocessing
+import datetime
 import subprocess
 import signal
 import sys
@@ -28,6 +29,7 @@ def sumbit_render(scene_file, output, start_f, end_f, step_f, threads, process, 
         output.setSelection(0, len(output.text()))
         output.setFocus()
         return
+
     # Submit render
     if override_cam:
         process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {output.text()} '
@@ -85,7 +87,7 @@ class MainProjectWindow(QtWidgets.QDialog):
             QtWidgets.QWidget.closeEvent(self, event)
 
     def handle_timeout(self):
-        self.button_stop.setText('Elapsed: %.*f' % (2, self._time.elapsed() / 1000.0))
+        #self.button_stop.setText('Elapsed: %.*f' % (2, self._time.elapsed() / 1000.0))
         data = bytearray(self._process.readAllStandardOutput()).decode('utf-8').rstrip()
         if 'Frame_' in data:
             try:
@@ -93,8 +95,12 @@ class MainProjectWindow(QtWidgets.QDialog):
             except ZeroDivisionError:
                 self.progress_bar_value = 1
             self.progress_bar.setValue(self.progress_bar_value)
-            old_frames = self.progress_bar.format().split('/')
-            self.progress_bar.setFormat(f'{int(old_frames[0]) + 1}/{old_frames[1]}')
+            new_frame = int(self.progress_bar.format().split('/')[0]) + 1
+        else:
+            new_frame = self.progress_bar.format().split('/')[0]
+        time_elapsed = datetime.timedelta(seconds=round(self._time.elapsed()/1000.0))
+        self.progress_bar.setFormat(f'{int(new_frame)}/{self.total_frames_num} frames'
+                                    f'                %p%                {time_elapsed}')
 
     def handle_started(self):
         self.button_create.setDisabled(True)
@@ -204,11 +210,14 @@ class MainProjectWindow(QtWidgets.QDialog):
         total_frames = int(frames / self.stepFrame.value())
         if total_frames == 0:
             total_frames += 1
+        self.total_frames_num = total_frames
         self.progress_bar.setFormat(f'0/{total_frames} frames                    %p%')
 
     def prepare_render(self):
         self.progress_bar.setValue(0)
         self.progress_bar_value = 0
+
+        self.total_frames()
 
         if sumbit_render(self.scene_file, self.destination_path, self.startFrame.value(), self.endFrame.value(),
                          self.stepFrame.value(), self.thread_slider.value(), self._process,
@@ -226,6 +235,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.progress_bar.setValue(0)
         self.progress_bar_value = 0
         self.total_frames()
+        self.total_frames_num = 1
         self.mainLayout.addWidget(self.progress_bar)
 
         confirm_layout = QtWidgets.QHBoxLayout()
