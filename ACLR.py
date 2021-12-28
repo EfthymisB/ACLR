@@ -32,13 +32,13 @@ def sumbit_render(scene_file, output, start_f, end_f, step_f, threads, process, 
 
     # Submit render
     if override_cam:
-        process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {output.text()} '
-                      f'-cam {cam_sel.text()} -postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
-                      f'-postRender print("""Render_finished\\n"""); {scene_file.text()}')
+        process.start('cmd.exe /C Render -r arnold -s {start} -e {end} -b {step} -ai:threads {threads} -rd {output} '
+                      '-cam {cam_sel} -postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
+                      '-postRender print("""Render_finished\\n"""); {scene_file.text()}'.format(start=start_f, end=end_f, step=step_f, threads=threads, output=output.text(), cam_sel=cam_sel.text(), scene_file=scene_file.text()))
     else:
-        process.start(f'cmd.exe /C Render -r arnold -s {start_f} -e {end_f} -b {step_f} -ai:threads {threads} -rd {output.text()} '
-                      f'-postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
-                      f'-postRender print("""Render_finished\\n"""); {scene_file.text()}')
+        process.start('cmd.exe /C Render -r arnold -s {start} -e {end} -b {step} -ai:threads {threads} -rd {output} '
+                      '-postFrame $s=`currentTime-q`;print("""Frame_"""+$s+"""_completed\\n"""); '
+                      '-postRender print("""Render_finished\\n"""); {scene_file}'.format(start=start_f, end=end_f, step=step_f, threads=threads, output=output.text(), scene_file=scene_file.text()))
     return True
 
 
@@ -99,8 +99,8 @@ class MainProjectWindow(QtWidgets.QDialog):
         else:
             new_frame = self.progress_bar.format().split('/')[0]
         time_elapsed = datetime.timedelta(seconds=round(self._time.elapsed()/1000.0))
-        self.progress_bar.setFormat(f'{int(new_frame)}/{self.total_frames_num} frames'
-                                    f'                %p%                {time_elapsed}')
+        self.progress_bar.setFormat('{new_frame}/{total_frames_num} frames'
+                                    '                %p%                {time_elapsed}'.format(new_frame=int(new_frame), total_frames_num=self.total_frames_num, time_elapsed=time_elapsed))
 
     def handle_started(self):
         self.button_create.setDisabled(True)
@@ -147,8 +147,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.frame_grBox = QtWidgets.QGroupBox("Frames")
         self.frame_grBox_layout = QtWidgets.QFormLayout(self.frame_grBox)
         self.frames_and_render_layout.addWidget(self.frame_grBox, 1)
-
-        self.cameraGroupBox = QtWidgets.QGroupBox("Camera", alignment=QtGui.Qt.AlignCenter)
+        self.cameraGroupBox = QtWidgets.QGroupBox("Camera", alignment=QtCore.Qt.AlignCenter)
         self.cameraGroupBoxLayout = QtWidgets.QFormLayout(self.cameraGroupBox)
         self.frames_and_render_layout.addWidget(self.cameraGroupBox, 1)
         self.cameraListWidget = QtWidgets.QListWidget()
@@ -184,7 +183,7 @@ class MainProjectWindow(QtWidgets.QDialog):
 
         elif event.endswith('.mb'):
             try:
-                file = open(event, encoding="latin-1")
+                file = open(event, 'rb') #encoding="latin-1")
                 file_lines = file.readlines()
                 results = []
                 for line in file_lines:
@@ -199,11 +198,8 @@ class MainProjectWindow(QtWidgets.QDialog):
             except FileNotFoundError:
                 pass
 
-    def camera_override_switch(self, event):
-        if event:
-            self.cameraListWidget.setEnabled(True)
-        else:
-            self.cameraListWidget.setDisabled(True)
+    def camera_override_switch(self):
+        self.cameraListWidget.setEnabled(self.camera_override.isChecked())
 
     def total_frames(self):
         frames = (self.endFrame.value() - self.startFrame.value()) + 1
@@ -211,7 +207,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         if total_frames == 0:
             total_frames += 1
         self.total_frames_num = total_frames
-        self.progress_bar.setFormat(f'0/{total_frames} frames                    %p%')
+        self.progress_bar.setFormat('0/{total_frames} frames                    %p%'.format(total_frames=total_frames))
 
     def prepare_render(self):
         self.progress_bar.setValue(0)
@@ -229,6 +225,7 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.mainLayout.addStretch()
 
         self.progress_bar = QtWidgets.QProgressBar()
+
         self.progress_bar.setAlignment(QtCore.Qt.AlignCenter)
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
@@ -330,11 +327,11 @@ class MainProjectWindow(QtWidgets.QDialog):
         self.render_device_grBox_layout.addLayout(self.slider_labels_layout)
 
         self.slider_min = QtWidgets.QLabel('1')
-        self.slider_value = QtWidgets.QLabel(f'{multiprocessing.cpu_count()}')
+        self.slider_value = QtWidgets.QLabel('{cpu_count}'.format(cpu_count=multiprocessing.cpu_count()))
         my_font = QtGui.QFont()
         my_font.setBold(True)
         self.slider_value.setFont(my_font)
-        self.slider_max = QtWidgets.QLabel(f'{multiprocessing.cpu_count()}')
+        self.slider_max = QtWidgets.QLabel('{cpu_count}'.format(cpu_count=multiprocessing.cpu_count()))
 
         self.slider_labels_layout.addWidget(self.slider_min, 1, QtCore.Qt.AlignLeft)
         self.slider_labels_layout.addWidget(self.slider_value, 1, QtCore.Qt.AlignCenter)
@@ -393,9 +390,8 @@ class MainProjectWindow(QtWidgets.QDialog):
 if __name__ == '__main__':
     # Create the Qt Application
     app = QtWidgets.QApplication(sys.argv)
-
     for i in range(2018, 2023):
-        path = f"C:\\Program Files\\Autodesk\\Arnold\\Maya{i}"
+        path = "C:\\Program Files\\Autodesk\\Arnold\\Maya{i}".format(i=i)
         if os.path.isdir(path):
             app.setWindowIcon(QtGui.QIcon(path + "\\arnold.ico"))
 
