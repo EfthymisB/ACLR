@@ -183,19 +183,16 @@ class MainProjectWindow(QtWidgets.QDialog):
 
         elif event.endswith('.mb'):
             try:
-                file = open(event, 'rb') #encoding="latin-1")
-                file_lines = file.readlines()
-                results = []
-                for line in file_lines:
-                    if line.strip().startswith('-camera'):
-                        try:
-                            results.append(re.search("\\|(.*?)\\|", line).group(1))
-                        except AttributeError:
-                            pass
-                for result in sorted(set(results)):
-                    self.cameraListWidget.addItem(result)
+                import maya.standalone
+                maya.standalone.initialize(name='python')
+                import maya.cmds as cmds
+                cmds.file(r"C:\Users\Efthymis\Desktop\Test\TEST.mb", f=True, o=True)
+                cameras = cmds.listCameras()
+            
+                for cam in sorted(set(cameras)):
+                    self.cameraListWidget.addItem(cam)
                 self.cameraListWidget.setCurrentRow(0)
-            except FileNotFoundError:
+            except:
                 pass
 
     def camera_override_switch(self):
